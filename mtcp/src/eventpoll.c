@@ -266,7 +266,7 @@ RaisePendingStreamEvents(mtcp_manager_t mtcp,
 /*----------------------------------------------------------------------------*/
 int 
 mtcp_epoll_ctl(mctx_t mctx, int epid, 
-		int op, int sockid, struct mtcp_epoll_event *event)
+		int op, int sockid, struct epoll_event *event)
 {
 	mtcp_manager_t mtcp;
 	struct mtcp_epoll *ep;
@@ -361,7 +361,7 @@ mtcp_epoll_ctl(mctx_t mctx, int epid,
 /*----------------------------------------------------------------------------*/
 int 
 mtcp_epoll_wait(mctx_t mctx, int epid, 
-		struct mtcp_epoll_event *events, int maxevents, int timeout)
+		struct epoll_event *events, int maxevents, int timeout)
 {
 	mtcp_manager_t mtcp;
 	struct mtcp_epoll *ep;
