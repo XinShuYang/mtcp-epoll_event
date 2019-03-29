@@ -19,7 +19,7 @@ struct mtcp_epoll_stat
 /*----------------------------------------------------------------------------*/
 struct mtcp_epoll_event_int
 {
-	struct mtcp_epoll_event ev;
+	struct epoll_event ev;
 	int sockid;
 };
 /*----------------------------------------------------------------------------*/
