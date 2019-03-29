@@ -165,14 +165,14 @@ SendUntilAvailable(struct thread_context *ctx, int sockid, struct server_vars *s
 	}
 
 	if (sv->total_sent >= fcache[sv->fidx].size) {
-		struct mtcp_epoll_event ev;
+		struct epoll_event ev;
 		sv->done = TRUE;
 		finished++;
 
 		if (sv->keep_alive) {
 			/* if keep-alive connection, wait for the incoming request */
 			ev.events = MTCP_EPOLLIN;
-			ev.data.sockid = sockid;
+			ev.data.fd = sockid;
 			mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_MOD, sockid, &ev);
 
 			CleanServerVariable(sv);
@@ -188,7 +188,7 @@ SendUntilAvailable(struct thread_context *ctx, int sockid, struct server_vars *s
 static int 
 HandleReadEvent(struct thread_context *ctx, int sockid, struct server_vars *sv)
 {
-	struct mtcp_epoll_event ev;
+	struct epoll_event ev;
 	char buf[HTTP_HEADER_LEN];
 	char url[URL_LEN];
 	char response[HTTP_HEADER_LEN];
@@ -272,7 +272,7 @@ HandleReadEvent(struct thread_context *ctx, int sockid, struct server_vars *sv)
 	sv->rspheader_sent = TRUE;
 
 	ev.events = MTCP_EPOLLIN | MTCP_EPOLLOUT;
-	ev.data.sockid = sockid;
+	ev.data.fd = sockid;
 	mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_MOD, sockid, &ev);
 
 	SendUntilAvailable(ctx, sockid, sv);
@@ -285,7 +285,7 @@ AcceptConnection(struct thread_context *ctx, int listener)
 {
 	mctx_t mctx = ctx->mctx;
 	struct server_vars *sv;
-	struct mtcp_epoll_event ev;
+	struct epoll_event ev;
 	int c;
 
 	c = mtcp_accept(mctx, listener, NULL, NULL);
@@ -300,7 +300,7 @@ AcceptConnection(struct thread_context *ctx, int listener)
 		CleanServerVariable(sv);
 		TRACE_APP("New connection %d accepted.\n", c);
 		ev.events = MTCP_EPOLLIN;
-		ev.data.sockid = c;
+		ev.data.fd = c;
 		mtcp_setsock_nonblock(ctx->mctx, c);
 		mtcp_epoll_ctl(mctx, ctx->ep, MTCP_EPOLL_CTL_ADD, c, &ev);
 		TRACE_APP("Socket %d registered.\n", c);
@@ -368,7 +368,7 @@ int
 CreateListeningSocket(struct thread_context *ctx)
 {
 	int listener;
-	struct mtcp_epoll_event ev;
+	struct epoll_event ev;
 	struct sockaddr_in saddr;
 	int ret;
 
@@ -404,7 +404,7 @@ CreateListeningSocket(struct thread_context *ctx)
 	
 	/* wait for incoming accept events */
 	ev.events = MTCP_EPOLLIN;
-	ev.data.sockid = listener;
+	ev.data.fd = listener;
 	mtcp_epoll_ctl(ctx->mctx, ctx->ep, MTCP_EPOLL_CTL_ADD, listener, &ev);
 
 	return listener;
@@ -432,8 +432,8 @@ RunServerThread(void *arg)
 	mctx = ctx->mctx;
 	ep = ctx->ep;
 
-	events = (struct mtcp_epoll_event *)
-			calloc(MAX_EVENTS, sizeof(struct mtcp_epoll_event));
+	events = (struct epoll_event *)
+			calloc(MAX_EVENTS, sizeof(struct epoll_event));
 	if (!events) {
 		TRACE_ERROR("Failed to create event struct!\n");
 		exit(-1);
@@ -467,38 +467,38 @@ RunServerThread(void *arg)
 				/* error on the connection */
 				TRACE_APP("[CPU %d] Error on socket %d\n", 
 						core, events[i].data.sockid);
-				if (mtcp_getsockopt(mctx, events[i].data.sockid, 
+				if (mtcp_getsockopt(mctx, events[i].data.fd, 
 						SOL_SOCKET, SO_ERROR, (void *)&err, &len) == 0) {
 					if (err != ETIMEDOUT) {
 						fprintf(stderr, "Error on socket %d: %s\n", 
-								events[i].data.sockid, strerror(err));
+								events[i].data.fd, strerror(err));
 					}
 				} else {
 					perror("mtcp_getsockopt");
 				}
-				CloseConnection(ctx, events[i].data.sockid, 
-						&ctx->svars[events[i].data.sockid]);
+				CloseConnection(ctx, events[i].data.fd, 
+						&ctx->svars[events[i].data.fd]);
 
 			} else if (events[i].events & MTCP_EPOLLIN) {
-				ret = HandleReadEvent(ctx, events[i].data.sockid, 
-						&ctx->svars[events[i].data.sockid]);
+				ret = HandleReadEvent(ctx, events[i].data.fd, 
+						&ctx->svars[events[i].data.fd]);
 
 				if (ret == 0) {
 					/* connection closed by remote host */
-					CloseConnection(ctx, events[i].data.sockid, 
-							&ctx->svars[events[i].data.sockid]);
+					CloseConnection(ctx, events[i].data.fd, 
+							&ctx->svars[events[i].data.fd]);
 				} else if (ret < 0) {
 					/* if not EAGAIN, it's an error */
 					if (errno != EAGAIN) {
-						CloseConnection(ctx, events[i].data.sockid, 
-								&ctx->svars[events[i].data.sockid]);
+						CloseConnection(ctx, events[i].data.fd, 
+								&ctx->svars[events[i].data.fd]);
 					}
 				}
 
 			} else if (events[i].events & MTCP_EPOLLOUT) {
-				struct server_vars *sv = &ctx->svars[events[i].data.sockid];
+				struct server_vars *sv = &ctx->svars[events[i].data.fd];
 				if (sv->rspheader_sent) {
-					SendUntilAvailable(ctx, events[i].data.sockid, sv);
+					SendUntilAvailable(ctx, events[i].data.fd, sv);
 				} else {
 					TRACE_APP("Socket %d: Response header not sent yet.\n", 
 							events[i].data.sockid);
