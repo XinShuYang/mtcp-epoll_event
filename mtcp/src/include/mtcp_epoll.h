@@ -1,6 +1,8 @@
 #ifndef MTCP_EPOLL_H
 #define MTCP_EPOLL_H
 
+#include <sys/epoll.h> 
+
 #include "mtcp_api.h"
 
 #ifdef __cplusplus
@@ -55,11 +57,11 @@ mtcp_epoll_create1(mctx_t mctx, int flags);
 /*----------------------------------------------------------------------------*/
 int 
 mtcp_epoll_ctl(mctx_t mctx, int epid, 
-		int op, int sockid, struct mtcp_epoll_event *event);
+		int op, int sockid, struct epoll_event *event);
 /*----------------------------------------------------------------------------*/
 int 
 mtcp_epoll_wait(mctx_t mctx, int epid, 
-		struct mtcp_epoll_event *events, int maxevents, int timeout);
+		struct epoll_event *events, int maxevents, int timeout);
 /*----------------------------------------------------------------------------*/
 char * 
 EventToString(uint32_t event);
