@@ -28,7 +28,7 @@ struct socket_map
 
 	uint32_t epoll;			/* registered events */
 	uint32_t events;		/* available events */
-	mtcp_epoll_data_t ep_data;
+	epoll_data_t ep_data;
 
 	TAILQ_ENTRY (socket_map) free_smap_link;
 
